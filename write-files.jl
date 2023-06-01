@@ -96,10 +96,13 @@ function itermcolors(colors)
     "Badge Color"         => "Bold Color",
     "Cursor Color"        => "Foreground Color",
     "Cursor Guide Color"  => "Background Color",
-    "Cursor Text Color"   => "Foreground Color",
+    "Cursor Text Color"   => "Background Color",
     "Link Color"          => "Bold Color",
+    # This warrants a bit of caution to distinguish between selections indicated
+    # by applications and actual selections by iTerm2, since they may look the
+    # same when iTerm2 simply falls back to the foreground and background colors
     "Selection Color"     => "Foreground Color",
-    "Selected Text Color" => "Bold Color"))
+    "Selected Text Color" => "Background Color"))
 
   key_convert = eltype(keys(colors)) <: Symbol ? identity :
     x -> Symbol(lowercase(replace(string(x), " " => "_", "-" => "_")))
@@ -208,7 +211,7 @@ function html_view(colorss...; name = nothing, names = nothing)
 
     for k in union(map(keys, colorss)...)
       items_str = """
-        <td>$k</td>
+        <td style="font-family:monospace">$k</td>
         """
       for colors in colorss
         color = get(colors, k, colorant"transparent")
