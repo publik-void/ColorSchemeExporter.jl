@@ -35,13 +35,16 @@ using Dictionaries
 # background color relative to the screen's backlight. Thus, let's define this
 # starting point in RGB, because it allows to directly control the mix of the 3
 # color bands.
-base_lightwarm_rgb = RGB(1., .93, .78)
+base_lightwarm_rgb = RGB(1., .915, .78)
 
-# The amount of contrast between dark and light schemes
+# Overall luminance offset for dark schemes
+luminance_dark_background_light_foreground_offset = -6.
+
+# The distance of the dark fore-/background from light back-/foreground
 base_luminance_span  = 75.
 
 # To reduce the contrast between foreground and background
-foreground_luminance_light_muting = .15
+foreground_luminance_light_muting = .35
 foreground_luminance_dark_muting = .3
 foreground_chroma_muting = .7
 
@@ -59,9 +62,15 @@ bright_white_luminance_offset = 15.
 
 # Background luminance adjustments – to taste, as long as they're small
 background_luminance_lightwarm_offset = 0.
-background_luminance_darkwarm_offset  = 3.
+background_luminance_darkwarm_offset  = -3.
 background_luminance_lightcold_offset = 4.
 background_luminance_darkcold_offset  = 0.
+
+# Foreground luminance adjustments – to taste, as long as they're small
+foreground_luminance_lightwarm_offset = 0.
+foreground_luminance_darkwarm_offset  = -1.
+foreground_luminance_lightcold_offset = 4.
+foreground_luminance_darkcold_offset  = 0.
 
 # Hue adjustments – to taste but maybe not too big
 base_hue_lightwarm_offset =  0.
@@ -111,16 +120,28 @@ base_hue_darkcold = base_hue_cold + base_hue_darkcold_offset
 background_luminance_lightwarm =
   base_luminance_light + background_luminance_lightwarm_offset
 background_luminance_darkwarm =
-  base_luminance_dark + background_luminance_darkwarm_offset
+  base_luminance_dark + background_luminance_darkwarm_offset +
+  luminance_dark_background_light_foreground_offset
 background_luminance_lightcold =
   base_luminance_light + background_luminance_lightcold_offset
 background_luminance_darkcold =
-  base_luminance_dark + background_luminance_darkcold_offset
+  base_luminance_dark + background_luminance_darkcold_offset +
+  luminance_dark_background_light_foreground_offset
 
 foreground_luminance_dark =
   base_luminance_dark + foreground_luminance_dark_muting * base_luminance_span
-foreground_luminance_light =
+foreground_luminance_darkwarm =
+  foreground_luminance_dark + foreground_luminance_darkwarm_offset
+foreground_luminance_darkcold =
+  foreground_luminance_dark + foreground_luminance_darkcold_offset
+
+foreground_luminance_light = luminance_dark_background_light_foreground_offset +
   base_luminance_light - foreground_luminance_light_muting * base_luminance_span
+foreground_luminance_lightwarm =
+  foreground_luminance_light + foreground_luminance_lightwarm_offset
+foreground_luminance_lightcold =
+  foreground_luminance_light + foreground_luminance_lightcold_offset
+
 foreground_chroma = base_chroma * (1. - foreground_chroma_muting)
 
 gray_luminance_dark =
@@ -145,13 +166,13 @@ cs0_background_lightcold =
   LCHab(background_luminance_lightcold, base_chroma, base_hue_lightcold)
 
 cs0_foreground_darkwarm  =
-  LCHab(foreground_luminance_dark , foreground_chroma, base_hue_darkwarm)
+  LCHab(foreground_luminance_darkwarm , foreground_chroma, base_hue_darkwarm)
 cs0_foreground_darkcold  =
-  LCHab(foreground_luminance_dark , foreground_chroma, base_hue_darkcold)
+  LCHab(foreground_luminance_darkcold , foreground_chroma, base_hue_darkcold)
 cs0_foreground_lightwarm =
-  LCHab(foreground_luminance_light, foreground_chroma, base_hue_lightwarm)
+  LCHab(foreground_luminance_lightwarm, foreground_chroma, base_hue_lightwarm)
 cs0_foreground_lightcold =
-  LCHab(foreground_luminance_light, foreground_chroma, base_hue_lightcold)
+  LCHab(foreground_luminance_lightcold, foreground_chroma, base_hue_lightcold)
 
 cs0_gray_darkwarm  =
   LCHab(gray_luminance_dark , gray_chroma, base_hue_darkwarm)

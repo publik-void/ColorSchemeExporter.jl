@@ -6,7 +6,8 @@ out_dir = joinpath(@__DIR__, "out")
 
 indent(str::AbstractString) = replace(str, r"^"m => "  ")
 
-"Wraps a colorant to be shown as a colored square in the terminal. May result in badly colored output if some caller tries to truncate the output."
+"Wraps a colorant to be shown as a colored square in the terminal. May result in
+badly colored output if some caller tries to truncate the output."
 struct TermView{C <: Colorant, B <: Union{Nothing, Colorant}}
   c::C
   b::B
