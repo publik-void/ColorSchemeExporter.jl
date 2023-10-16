@@ -173,6 +173,69 @@ function itermcolors(colors)
   return itermcolors_str
 end
 
+function st_config(_colors)
+  colors = deepcopy(_colors)
+
+  color_indexes = dictionary((
+    :black          => 0,
+    :red            => 1,
+    :green          => 2,
+    :yellow         => 3,
+    :blue           => 4,
+    :magenta        => 5,
+    :cyan           => 6,
+    :white          => 7,
+    :bright_black   => 8,
+    :bright_red     => 9,
+    :bright_green   => 10,
+    :bright_yellow  => 11,
+    :bright_blue    => 12,
+    :bright_magenta => 13,
+    :bright_cyan    => 14,
+    :bright_white   => 15,
+    :background     => 259,
+    :foreground     => 258,
+    :cursor         => 256,
+    :cursor_reverse => 257))
+
+  color_index_variable_names = dictionary((
+    :background     => "defaultfg",
+    :foreground     => "defaultbg",
+    :cursor         => "defaultcs",
+    :cursor_reverse => "defaultrcs"))
+
+  defaults = dictionary((
+    :cursor         => :foreground,
+    :cursor_reverse => :background))
+
+  for (key, target) in pairs(defaults)
+    if !haskey(colors, key)
+      if haskey(colors, target)
+        insert!(colors, key, colors[target])
+      end
+    end
+  end
+
+  p0 = "// Generated from the Julia code in the `custom-color-schemes` Git \
+  repository\n"
+
+  p1 = ""
+  for (key, index) in pairs(color_indexes)
+    if haskey(colors, key)
+      p1 *= "colorname[$(lpad(index, 3))] = \"#$(hex(colors[key], :rrggbb))\";\n"
+    end
+  end
+
+  p2 = ""
+  for (key, color_index_variable_name) in pairs(color_index_variable_names)
+    if haskey(colors, key) && haskey(color_indexes, key)
+      p2 *= color_index_variable_name * " = $(color_indexes[key]);\n"
+    end
+  end
+
+  return join((p for p in (p0, p1, p2) if !isempty(p)), "\n")
+end
+
 function html_view(colorss...; name = nothing, names = nothing)
   colors_dicts = map(dictionary ∘ pairs, colorss)
 
@@ -324,10 +387,11 @@ function write_files(colorss::Pair...; name = "colors")
   html_str = html_view(colors_dicts...; names, name)
   write(joinpath(out_dir, "html", "$name.html"), html_str)
   for (partname, colors) in pairs(colors_dicts)
-    itermcolors_str = itermcolors(colors)
-    mkpath(joinpath(out_dir, "itermcolors", "$name"))
-    write(joinpath(out_dir, "itermcolors", "$name", "$partname.itermcolors"),
-          itermcolors_str)
+    for (formatter, ext) in ((itermcolors, "itermcolors"), (st_config, "h"))
+      str = formatter(colors)
+      mkpath(joinpath(out_dir, "$formatter", "$name"))
+      write(joinpath(out_dir, "$formatter", "$name", "$partname.$ext"), str)
+    end
   end
   return termview(map(last, colorss)...)
 end
