@@ -4,7 +4,7 @@ using Dictionaries
 
 out_dir = joinpath(@__DIR__, "out")
 
-indent(str::AbstractString) = replace(str, r"^"m => "  ")
+indent(str::AbstractString, n = 1) = replace(str, r"^"m => "  "^n)
 
 "Wraps a colorant to be shown as a colored square in the terminal. May result in
 badly colored output if some caller tries to truncate the output."
@@ -219,19 +219,43 @@ function st_config(_colors)
   p0 = "// Generated from the Julia code in the `custom-color-schemes` Git \
   repository\n"
 
-  p1 = ""
-  for (key, index) in pairs(color_indexes)
-    if haskey(colors, key)
-      p1 *= "colorname[$(lpad(index, 3))] = \"#$(hex(colors[key], :rrggbb))\";\n"
+  # p1 = ""
+  # for (key, index) in pairs(color_indexes)
+  #   if haskey(colors, key)
+  #     p1 *= "colorname[$(lpad(index, 3))] = \"#$(hex(colors[key], :rrggbb))\";\n"
+  #   end
+  # end
+
+  # p2 = ""
+  # for (key, color_index_variable_name) in pairs(color_index_variable_names)
+  #   if haskey(colors, key) && haskey(color_indexes, key)
+  #     p2 *= color_index_variable_name * " = $(color_indexes[key]);\n"
+  #   end
+  # end
+
+  p1 = "// Terminal colors\n\
+    static const char *colorname[] = {\n"
+  for (modify, adjective) in ((identity, "normal"), (brightname, "bright"))
+    p1 *= indent("// 8 $(adjective) colors\n")
+    for key in map(modify, (ansi_monos[1], ansi_huecolors..., ansi_monos[2]))
+      p1 *= indent((haskey(colors, key) ? "\"#$(hex(colors[key], :rrggbb))\"" :
+        "0") * ",\n")
     end
+    p1 *= "\n"
   end
+  p1 *= indent("[255] = 0,\n")
+  p1 *= "\n"
+  p1 *= indent("// additional colors after 255\n")
+  i = 256
+  while true
+    key = findfirst(c -> c == i, color_indexes)
+    isnothing(key) && break
+    p1 *= indent("\"#$(hex(colors[key], :rrggbb))\",\n")
+    i += 1
+  end
+  p1 *= "};\n"
 
   p2 = ""
-  for (key, color_index_variable_name) in pairs(color_index_variable_names)
-    if haskey(colors, key) && haskey(color_indexes, key)
-      p2 *= color_index_variable_name * " = $(color_indexes[key]);\n"
-    end
-  end
 
   return join((p for p in (p0, p1, p2) if !isempty(p)), "\n")
 end
