@@ -177,26 +177,26 @@ function st_config(_colors)
   colors = deepcopy(_colors)
 
   color_indexes = dictionary((
-    :black          => 0,
-    :red            => 1,
-    :green          => 2,
-    :yellow         => 3,
-    :blue           => 4,
-    :magenta        => 5,
-    :cyan           => 6,
-    :white          => 7,
-    :bright_black   => 8,
-    :bright_red     => 9,
-    :bright_green   => 10,
-    :bright_yellow  => 11,
-    :bright_blue    => 12,
-    :bright_magenta => 13,
-    :bright_cyan    => 14,
-    :bright_white   => 15,
-    :background     => 259,
-    :foreground     => 258,
-    :cursor         => 256,
-    :cursor_reverse => 257))
+    0   => :black         ,
+    1   => :red           ,
+    2   => :green         ,
+    3   => :yellow        ,
+    4   => :blue          ,
+    5   => :magenta       ,
+    6   => :cyan          ,
+    7   => :white         ,
+    8   => :bright_black  ,
+    9   => :bright_red    ,
+    10  => :bright_green  ,
+    11  => :bright_yellow ,
+    12  => :bright_blue   ,
+    13  => :bright_magenta,
+    14  => :bright_cyan   ,
+    15  => :bright_white  ,
+    259 => :background    ,
+    258 => :foreground    ,
+    256 => :cursor        ,
+    257 => :cursor_reverse))
 
   color_index_variable_names = dictionary((
     :background     => "defaultfg",
@@ -219,25 +219,14 @@ function st_config(_colors)
   p0 = "// Generated from the Julia code in the `custom-color-schemes` Git \
   repository\n"
 
-  # p1 = ""
-  # for (key, index) in pairs(color_indexes)
-  #   if haskey(colors, key)
-  #     p1 *= "colorname[$(lpad(index, 3))] = \"#$(hex(colors[key], :rrggbb))\";\n"
-  #   end
-  # end
-
-  # p2 = ""
-  # for (key, color_index_variable_name) in pairs(color_index_variable_names)
-  #   if haskey(colors, key) && haskey(color_indexes, key)
-  #     p2 *= color_index_variable_name * " = $(color_indexes[key]);\n"
-  #   end
-  # end
-
   p1 = "// Terminal colors\n\
     static const char *colorname[] = {\n"
-  for (modify, adjective) in ((identity, "normal"), (brightname, "bright"))
+  base_colornames   = getindices(color_indexes, 0:7)
+  bright_colornames = getindices(color_indexes, 8:15)
+  for (colornames, adjective) in ((base_colornames  , "normal"),
+                                  (bright_colornames, "bright"))
     p1 *= indent("// 8 $(adjective) colors\n")
-    for key in map(modify, (ansi_monos[1], ansi_huecolors..., ansi_monos[2]))
+    for key in colornames
       p1 *= indent((haskey(colors, key) ? "\"#$(hex(colors[key], :rrggbb))\"" :
         "0") * ",\n")
     end
@@ -247,10 +236,8 @@ function st_config(_colors)
   p1 *= "\n"
   p1 *= indent("// additional colors after 255\n")
   i = 256
-  while true
-    key = findfirst(c -> c == i, color_indexes)
-    isnothing(key) && break
-    p1 *= indent("\"#$(hex(colors[key], :rrggbb))\",\n")
+  while haskey(color_indexes, i)
+    p1 *= indent("\"#$(hex(colors[color_indexes[i]], :rrggbb))\",\n")
     i += 1
   end
   p1 *= "};\n"
