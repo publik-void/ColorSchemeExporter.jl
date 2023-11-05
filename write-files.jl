@@ -283,7 +283,7 @@ function xresources(colors)
   repository\n\n"
   for (k, name) in pairs(xresources_names)
     if haskey(colors, k)
-      str *= "! $k\n$prefix$(name): $(hex(colors[k], :rrggbb))\n\n"
+      str *= "! $k\n$prefix$(name): #$(hex(colors[k], :rrggbb))\n\n"
     end
   end
   return str
