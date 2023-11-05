@@ -45,6 +45,24 @@ function termview(colorss...)
   return Dictionary(ks, tvss)
 end
 
+function fill_defaults(colors)
+  _colors = deepcopy(colors)
+
+    defaults = dictionary((
+    :cursor         => :foreground,
+    :cursor_reverse => :background))
+
+  for (key, target) in pairs(defaults)
+    if !haskey(_colors, key)
+      if haskey(_colors, target)
+        insert!(_colors, key, colors[target])
+      end
+    end
+  end
+
+  return _colors
+end
+
 function itermcolors(colors)
   itermcolors_names = dictionary((
     :black          =>  "Ansi 0 Color",
@@ -173,8 +191,8 @@ function itermcolors(colors)
   return itermcolors_str
 end
 
-function st_config(_colors)
-  colors = deepcopy(_colors)
+function st_config(colors)
+  colors = fill_defaults(colors)
 
   color_indexes = dictionary((
     0   => :black         ,
@@ -198,23 +216,11 @@ function st_config(_colors)
     256 => :cursor        ,
     257 => :cursor_reverse))
 
-  color_index_variable_names = dictionary((
-    :background     => "defaultfg",
-    :foreground     => "defaultbg",
-    :cursor         => "defaultcs",
-    :cursor_reverse => "defaultrcs"))
-
-  defaults = dictionary((
-    :cursor         => :foreground,
-    :cursor_reverse => :background))
-
-  for (key, target) in pairs(defaults)
-    if !haskey(colors, key)
-      if haskey(colors, target)
-        insert!(colors, key, colors[target])
-      end
-    end
-  end
+  # color_index_variable_names = dictionary((
+  #   :background     => "defaultfg",
+  #   :foreground     => "defaultbg",
+  #   :cursor         => "defaultcs",
+  #   :cursor_reverse => "defaultrcs"))
 
   p0 = "// Generated from the Julia code in the `custom-color-schemes` Git \
   repository\n"
@@ -245,6 +251,42 @@ function st_config(_colors)
   p2 = ""
 
   return join((p for p in (p0, p1, p2) if !isempty(p)), "\n")
+end
+
+function xresources(colors)
+  colors = fill_defaults(colors)
+
+  xresources_names = dictionary((
+    :background     => "background",
+    :foreground     => "foreground",
+    :cursor         => "cursorColor",
+    :black          =>  "color0",
+    :red            =>  "color1",
+    :green          =>  "color2",
+    :yellow         =>  "color3",
+    :blue           =>  "color4",
+    :magenta        =>  "color5",
+    :cyan           =>  "color6",
+    :white          =>  "color7",
+    :bright_black   =>  "color8",
+    :bright_red     =>  "color9",
+    :bright_green   => "color10",
+    :bright_yellow  => "color11",
+    :bright_blue    => "color12",
+    :bright_magenta => "color13",
+    :bright_cyan    => "color14",
+    :bright_white   => "color15"))
+
+  prefix = "*"
+
+  str = "! Generated from the Julia code in the `custom-color-schemes` Git \
+  repository\n\n"
+  for (k, name) in pairs(xresources_names)
+    if haskey(colors, k)
+      str *= "! $k\n$prefix$(name): $(hex(colors[k], :rrggbb))\n\n"
+    end
+  end
+  return str
 end
 
 function html_view(colorss...; name = nothing, names = nothing)
@@ -398,7 +440,7 @@ function write_files(colorss::Pair...; name = "colors")
   html_str = html_view(colors_dicts...; names, name)
   write(joinpath(out_dir, "html", "$name.html"), html_str)
   for (partname, colors) in pairs(colors_dicts)
-    for (formatter, ext) in ((itermcolors, "itermcolors"), (st_config, "h"))
+    for (formatter, ext) in ((itermcolors, "itermcolors"), (st_config, "h"), (xresources, "theme.Xresources"))
       str = formatter(colors)
       mkpath(joinpath(out_dir, "$formatter", "$name"))
       write(joinpath(out_dir, "$formatter", "$name", "$partname.$ext"), str)
