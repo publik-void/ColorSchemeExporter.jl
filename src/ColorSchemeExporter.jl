@@ -279,7 +279,7 @@ function as_st_config(colors)
   #   :cursor         => "defaultcs",
   #   :cursor_reverse => "defaultrcs"))
 
-  p0 = "// Generated from the Julia code in the `custom-color-schemes` Git \
+  p0 = "// Generated from the Julia code in the `ColorSchemeExporter.jl` Git \
     repository\n"
 
   p1 = "// Terminal colors\n\
@@ -336,7 +336,7 @@ function as_xresources(colors)
 
   prefix = "*"
 
-  str = "! Generated from the Julia code in the `custom-color-schemes` Git \
+  str = "! Generated from the Julia code in the `ColorSchemeExporter.jl` Git \
     repository\n\n"
   for (k, name) in pairs(xresources_names)
     if haskey(colors, k)
@@ -352,7 +352,7 @@ function as_console_escape_codes(colors)
   str = """\
   #!/bin/sh
 
-  # Generated from the Julia code in the `custom-color-schemes` Git repository
+  # Generated from the Julia code in the `ColorSchemeExporter.jl` Git repository
 
   """
 
