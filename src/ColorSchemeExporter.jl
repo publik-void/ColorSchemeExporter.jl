@@ -1,10 +1,78 @@
+module ColorSchemeExporter
+
 using FixedPointNumbers
 using Colors
 using Dictionaries
 
-out_dir = joinpath(@__DIR__, "out")
+export ansi_monos, ansi_huecolors, ansi_base_hues, ansi_base_saturations,
+  ansi_base_values, ansi_base_lightnesses, brightname, termview, write_files,
+  @write_files, ansi_color_indexes
 
-indent(str::AbstractString, n = 1) = replace(str, r"^"m => "  "^n)
+indent(str::AbstractString, n = 1, indent_width = 2) =
+  replace(str, r"^"m => " " ^ (n * indent_width))
+
+ansi_monos = (:black, :white)
+ansi_huecolors = (:red, :yellow, :green, :cyan, :blue, :magenta)
+
+ansi_color_indexes = dictionary((
+  0   => :black         ,
+  1   => :red           ,
+  2   => :green         ,
+  3   => :yellow        ,
+  4   => :blue          ,
+  5   => :magenta       ,
+  6   => :cyan          ,
+  7   => :white         ,
+  8   => :bright_black  ,
+  9   => :bright_red    ,
+  10  => :bright_green  ,
+  11  => :bright_yellow ,
+  12  => :bright_blue   ,
+  13  => :bright_magenta,
+  14  => :bright_cyan   ,
+  15  => :bright_white  ))
+
+ansi_base_hues = dictionary((
+  :red     =>   0.,
+  :yellow  =>  60.,
+  :green   => 120.,
+  :cyan    => 180.,
+  :blue    => 240.,
+  :magenta => 300.,
+  :black   =>   0.,
+  :white   =>   0.))
+
+ansi_base_saturations = dictionary((
+  :red     => 1.,
+  :yellow  => 1.,
+  :green   => 1.,
+  :cyan    => 1.,
+  :blue    => 1.,
+  :magenta => 1.,
+  :black   => 0.,
+  :white   => 0.))
+
+ansi_base_values = dictionary((
+  :red     => 1.,
+  :yellow  => 1.,
+  :green   => 1.,
+  :cyan    => 1.,
+  :blue    => 1.,
+  :magenta => 1.,
+  :black   => 0.,
+  :white   => 1.))
+
+ansi_base_lightnesses = dictionary((
+  :red     => .5,
+  :yellow  => .5,
+  :green   => .5,
+  :cyan    => .5,
+  :blue    => .5,
+  :magenta => .5,
+  :black   => 0.,
+  :white   => 1.))
+
+brightname(name) = Symbol(:bright_, name)
 
 "Wraps a colorant to be shown as a colored square in the terminal. May result in
 badly colored output if some caller tries to truncate the output."
@@ -14,11 +82,12 @@ struct TermView{C <: Colorant, B <: Union{Nothing, Colorant}}
   n::UInt8
 end
 
-TermView(c, b = nothing) = TermView(c, b, UInt8(8))
+termview_default_background_color = nothing
+terview_default_n = UInt8(8)
 
 # Really helpful here, but also helpful in terms of elucidating the broader
 # terminal color/styling capabilities:
-# https://stackoverflow.com/questions/4842424/list-of-ansi-color-escape-sequences
+# https://stackoverflow.com/a/33206814
 function Base.show(io::IO, tv::TermView)
   f = x -> Int(x.i)
   rgba = RGBA{N0f8}(tv.c)
@@ -26,44 +95,92 @@ function Base.show(io::IO, tv::TermView)
   fg = "\x1b[38;2;$(r);$(g);$(b)m"
   if isnothing(tv.b)
     # r = HSLA(rgba).l ≥ .5 ? 0 : 255; g = r; b = r
-    r = 0; g = r; b = r
+    # r = 0; g = r; b = r
+    bg = ""
   else
     rgba = RGBA{N0f8}(tv.b)
     r = f(rgba.r); g = f(rgba.g); b = f(rgba.b)
+    bg = "\x1b[48;2;$(r);$(g);$(b)m"
   end
-  bg = "\x1b[48;2;$(r);$(g);$(b)m"
   sq = rgba.alpha < one(rgba.alpha) ? "□" : "■"
   rst = "\x1b[0m"
   print(io, fg, bg, repeat(sq, tv.n), rst)
 end
 
-function termview(colorss...)
+function termview(color::Colorant,
+  background_color::Union{Nothing, <:Colorant} = nothing;
+  default_background_color = termview_default_background_color,
+  n = terview_default_n)
+  return TermView(color,
+    isnothing(background_color) ? default_background_color : background_color,
+    n)
+end
+
+function termview(colorss...;
+  default_background_color = termview_default_background_color,
+  n = terview_default_n)
   ks = [union(map(keys, colorss)...)...]
-  bs = [get(colors, :background, RGBA(0, 0, 0, 0)) for colors in colorss]
-  tvss = ((((TermView(get(colors, k, b), b)
+  bs = [keytype(colors) ≠ Symbol ? default_background_color :
+    get(colors, :background, default_background_color)
+    for colors in colorss]
+  tvss = ((((TermView(get(colors, k, b), b, n)
     for (colors, b) in zip(colorss, bs))...,) for k in ks)...,)
   return Dictionary(ks, tvss)
 end
 
+function key_convert(key::Union{Symbol, AbstractString, Number})
+  return Symbol(lowercase(replace(string(key), " " => "_", "-" => "_")))
+end
+
+function key_convert(colors)
+  if eltype(keys(colors)) <: Symbol
+    return colors
+  else
+    return Dictionary(map(key_convert, keys(colors)), values(colors))
+  end
+end
+
 function fill_defaults(colors)
-  _colors = deepcopy(colors)
+  colors = deepcopy(colors)
 
-    defaults = dictionary((
+  defaults = dictionary((
+    :bright_black   => :black,
+    :bright_red     => :red,
+    :bright_green   => :green,
+    :bright_yellow  => :yellow,
+    :bright_blue    => :blua,
+    :bright_magenta => :magenta,
+    :bright_cyan    => :cyan,
+    :bright_white   => :white,
     :cursor         => :foreground,
-    :cursor_reverse => :background))
+    :cursor_reverse => :background,
+    :bold           => :foreground,
+    :badge          => :bold,
+    :cursor         => :foreground,
+    :cursor_guide   => :background,
+    :cursor_text    => :cursor_reverse,
+    :link           => :bold,
+    :selection      => :foreground,
+    :selected_text  => :background))
 
-  for (key, target) in pairs(defaults)
-    if !haskey(_colors, key)
-      if haskey(_colors, target)
-        insert!(_colors, key, colors[target])
+  indirection(key) = haskey(colors, key) ? colors[key] :
+    haskey(defaults, key) ? indirection(defaults[key]) : nothing
+
+  for key in keys(defaults)
+    if !haskey(colors, key)
+      c = indirection(key)
+      if !isnothing(c)
+        insert!(colors, key, c)
       end
     end
   end
 
-  return _colors
+  return colors
 end
 
-function itermcolors(colors)
+function as_itermcolors(colors)
+  colors = fill_defaults(key_convert(colors))
+
   itermcolors_names = dictionary((
     :black          =>  "Ansi 0 Color",
     :red            =>  "Ansi 1 Color",
@@ -92,53 +209,9 @@ function itermcolors(colors)
     :selection      => "Selection Color",
     :selected_text  => "Selected Text Color"))
 
-  defaults = dictionary((
-     "Ansi 0 Color"       => colorant"black",
-     "Ansi 1 Color"       => "Ansi 0 Color",
-     "Ansi 2 Color"       => "Ansi 0 Color",
-     "Ansi 3 Color"       => "Ansi 0 Color",
-     "Ansi 4 Color"       => "Ansi 0 Color",
-     "Ansi 5 Color"       => "Ansi 0 Color",
-     "Ansi 6 Color"       => "Ansi 0 Color",
-     "Ansi 7 Color"       => "Ansi 0 Color",
-     "Ansi 8 Color"       => "Ansi 0 Color",
-     "Ansi 9 Color"       => "Ansi 1 Color",
-    "Ansi 10 Color"       => "Ansi 2 Color",
-    "Ansi 11 Color"       => "Ansi 3 Color",
-    "Ansi 12 Color"       => "Ansi 4 Color",
-    "Ansi 13 Color"       => "Ansi 5 Color",
-    "Ansi 14 Color"       => "Ansi 6 Color",
-    "Ansi 15 Color"       => "Ansi 7 Color",
-    "Background Color"    => "Ansi 0 Color",
-    "Foreground Color"    => "Ansi 7 Color",
-    "Bold Color"          => "Foreground Color",
-    "Badge Color"         => "Bold Color",
-    "Cursor Color"        => "Foreground Color",
-    "Cursor Guide Color"  => "Background Color",
-    "Cursor Text Color"   => "Background Color",
-    "Link Color"          => "Bold Color",
-    # This warrants a bit of caution to distinguish between selections indicated
-    # by applications and actual selections by iTerm2, since they may look the
-    # same when iTerm2 simply falls back to the foreground and background colors
-    "Selection Color"     => "Foreground Color",
-    "Selected Text Color" => "Background Color"))
-
-  key_convert = eltype(keys(colors)) <: Symbol ? identity :
-    x -> Symbol(lowercase(replace(string(x), " " => "_", "-" => "_")))
-
-  colors_dict = map(pairs(dictionary(pairs(colors)))) do (k, c)
-    itermcolors_names[key_convert(k)] => c
+  colors_dict = map(pairs(itermcolors_names)) do (k, name)
+    name => colors[k]
   end |> dictionary
-
-  function indirect(d, k, indirections)
-    _k = indirections[k]
-    return _k isa Colorant ? _k :
-      haskey(d, _k) ? d[_k] : indirect(d, _k, indirections)
-  end
-
-  for k in setdiff(itermcolors_names, keys(colors_dict))
-    insert!(colors_dict, k, indirect(colors_dict, k, defaults))
-  end
 
   itermcolors_dict = map(pairs(colors_dict)) do (k, c)
     c_rgba_float64 = RGBA{Float64}(c)
@@ -191,26 +264,10 @@ function itermcolors(colors)
   return itermcolors_str
 end
 
-function st_config(colors)
-  colors = fill_defaults(colors)
+function as_st_config(colors)
+  colors = fill_defaults(key_convert(colors))
 
-  color_indexes = dictionary((
-    0   => :black         ,
-    1   => :red           ,
-    2   => :green         ,
-    3   => :yellow        ,
-    4   => :blue          ,
-    5   => :magenta       ,
-    6   => :cyan          ,
-    7   => :white         ,
-    8   => :bright_black  ,
-    9   => :bright_red    ,
-    10  => :bright_green  ,
-    11  => :bright_yellow ,
-    12  => :bright_blue   ,
-    13  => :bright_magenta,
-    14  => :bright_cyan   ,
-    15  => :bright_white  ,
+  color_indexes = dictionary((pairs(ansi_color_indexes)...,
     259 => :background    ,
     258 => :foreground    ,
     256 => :cursor        ,
@@ -223,7 +280,7 @@ function st_config(colors)
   #   :cursor_reverse => "defaultrcs"))
 
   p0 = "// Generated from the Julia code in the `custom-color-schemes` Git \
-  repository\n"
+    repository\n"
 
   p1 = "// Terminal colors\n\
     static const char *colorname[] = {\n"
@@ -253,8 +310,8 @@ function st_config(colors)
   return join((p for p in (p0, p1, p2) if !isempty(p)), "\n")
 end
 
-function xresources(colors)
-  colors = fill_defaults(colors)
+function as_xresources(colors)
+  colors = fill_defaults(key_convert(colors))
 
   xresources_names = dictionary((
     :background     => "background",
@@ -280,7 +337,7 @@ function xresources(colors)
   prefix = "*"
 
   str = "! Generated from the Julia code in the `custom-color-schemes` Git \
-  repository\n\n"
+    repository\n\n"
   for (k, name) in pairs(xresources_names)
     if haskey(colors, k)
       str *= "! $k\n$prefix$(name): #$(hex(colors[k], :rrggbb))\n\n"
@@ -289,21 +346,75 @@ function xresources(colors)
   return str
 end
 
+function as_console_escape_codes(colors)
+  colors = fill_defaults(key_convert(colors))
+
+  str = """\
+  #!/bin/sh
+
+  # Generated from the Julia code in the `custom-color-schemes` Git repository
+
+  """
+
+  escape_cmd(i, k) = "printf \"\e]P$(uppercase(string(i; base = 16)))\
+    $(hex(colors[k], :rrggbb))\" # $k\n"
+
+  for (i, k) in pairs(ansi_color_indexes)
+    if k ∉ (:black, :white); str *= escape_cmd(i, k); end
+  end
+
+  colors[:black] = colors[:background]
+  colors[:white] = colors[:foreground]
+
+  branch_0 = ""
+  for (i, k) in pairs(ansi_color_indexes)
+    if k ∈ (:black, :white); branch_0 *= escape_cmd(i, k); end
+  end
+
+  use_optional_setterm = false # `setterm` gets reset often anyway
+
+  if !use_optional_setterm
+    str *= branch_0
+  else
+    dark = HSV(colors[:background]).v ≤ HSV(colors[:foreground]).v
+    k0 = dark ? :black : :white; k1 = dark ? :white : :black
+
+    colors[k0] = colors[:background]
+    colors[k1] = colors[:foreground]
+
+    branch_1 = ""
+    for (i, k) in pairs(ansi_color_indexes)
+      if k ∈ (:black, :white); branch_1 *= escape_cmd(i, k); end
+    end
+
+    setterm_test = "if command -v setterm 1> /dev/null; then"
+    setterm_cmd = "setterm -background $k0 -foreground $k1"
+
+    str *= "\n"
+    if dark
+      str *= """\
+        $branch_0\
+
+        $setterm_test
+        $(indent(setterm_cmd))
+        fi
+        """
+    else
+      str *= """\
+        $setterm_test
+        $(indent(branch_1))
+        $(indent(setterm_cmd))
+        else
+        $(indent(branch_0))\
+        fi
+        """
+    end
+  end
+
+  return str
+end
+
 function html_view(colorss...; name = nothing, names = nothing)
-  colors_dicts = map(dictionary ∘ pairs, colorss)
-
-  # background_colors = [colors_dict[:background]
-  #   for colors_dict in colors_dicts if haskey(colors_dict, :background)]
-  # background_color = !isempty(background_colors) &&
-  #   allequal(map(RGBA{N0f8}, background_colors)) ? first(background_colors) :
-  #                                                  colorant"black"
-  # 
-  # foreground_colors = [colors_dict[:foreground]
-  #   for colors_dict in colors_dicts if haskey(colors_dict, :foreground)]
-  # foreground_color = !isempty(foreground_colors) &&
-  #   allequal(map(RGBA{N0f8}, foreground_colors)) ? first(foreground_colors) :
-  #                                                  colorant"white"
-
   background_color = colorant"black"
   foreground_color = colorant"white"
 
@@ -316,7 +427,7 @@ function html_view(colorss...; name = nothing, names = nothing)
         """
       for name in names
         items_str *= """
-          <th scope="col">$name</th>
+          <th scope="col" style=font-size:small>$name</th>
           """
       end
       rows_str *= """
@@ -369,7 +480,7 @@ function html_view(colorss...; name = nothing, names = nothing)
       """
   end
 
-  name_strs = isnothing(names) ? ("" for colors in colorss) :
+  name_strs = isnothing(names) ? ("" for _ in colorss) :
     (isnothing(name) ? "" :
       " for <span style=\"font-family:monospace\">$name</span>"
       for name in names)
@@ -433,23 +544,49 @@ function html_view(colorss...; name = nothing, names = nothing)
   return html_str
 end
 
-function write_files(colorss::Pair...; name = "colors")
-  colors_dicts = dictionary(colorss)
+"""
+    write_files(part_1_name => part_1_colors, ...; name, out_dir)
+
+Export a color scheme named `name` consisting of several parts named
+`part_1_name`, etc. in the formats supported by this package to subdirectories
+of `out_dir`.
+
+See also `@write_files`.
+"""
+function write_files(colorss::Pair...;
+    name = "colors", out_dir = joinpath(pwd(), "out"))
+  name_dir = joinpath(out_dir, name)
   names = map(first, colorss)
-  mkpath(joinpath(out_dir, "html"))
-  html_str = html_view(colors_dicts...; names, name)
-  write(joinpath(out_dir, "html", "$name.html"), html_str)
-  for (partname, colors) in pairs(colors_dicts)
-    for (formatter, ext) in ((itermcolors, "itermcolors"), (st_config, "h"), (xresources, "theme.Xresources"))
+  mkpath(name_dir)
+
+  html_str = html_view(map(last, colorss)...; names, name)
+  write(joinpath(name_dir, "html-preview.html"), html_str)
+
+  for (partname, colors) in colorss
+    for (formatter, ext, format_name, executable_bit) in (
+        (as_itermcolors, "itermcolors", "iTerm2", false),
+        (as_st_config, "h", "st", false),
+        (as_xresources, "theme.Xresources", "Xresources", false),
+        (as_console_escape_codes, "sh", "console-escape-codes", true))
       str = formatter(colors)
-      mkpath(joinpath(out_dir, "$formatter", "$name"))
-      write(joinpath(out_dir, "$formatter", "$name", "$partname.$ext"), str)
+      path_dir = joinpath(name_dir, format_name, name)
+      path_file = joinpath(path_dir, "$partname.$ext")
+      mkpath(path_dir)
+      write(path_file, str)
+      if executable_bit; chmod(path_file, 0o744); end
     end
   end
   return termview(map(last, colorss)...)
 end
 
-macro write_files(name, colorss...)
+"""
+    @write_files(out_dir, name, part_1, ...)
+
+Calls `write_files` and uses the variable names of the parts.
+"""
+macro write_files(out_dir, name, colorss...)
   exs = (:($(string(colors)) => $colors) for colors in colorss)
-  return :(write_files($(exs...); name = $name))
+  return :(write_files($(exs...); name = $name, out_dir = $out_dir))
 end
+
+end # module ColorSchemeExporter
