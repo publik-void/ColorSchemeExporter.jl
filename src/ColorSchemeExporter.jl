@@ -634,7 +634,7 @@ function write_files(colorss::Pair...;
     str = as_basic_html_stylesheet(colorss_dict[light], colorss_dict[dark],
       name, light, dark)
     path_dir = joinpath(name_dir, "basic-html-stylesheets", name)
-    path_file = joinpath(path_dir, "$light-$dark.$ext")
+    path_file = joinpath(path_dir, "$light-$dark.css")
     mkpath(path_dir)
     write(path_file, str)
   end
