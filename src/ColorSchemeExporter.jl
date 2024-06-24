@@ -425,7 +425,7 @@ function as_console_escape_codes(colors, name, partname)
   return str
 end
 
-function as_css_custom_vars(colors, name, partname)
+function as_css_custom_vars(colors, name, partname; include_comment = true)
   colors = fill_defaults(key_convert(colors))
 
   str = "/* $(description_comment(name, partname)) */\n\n"
@@ -568,17 +568,44 @@ function html_view(colorss...; name = nothing, names = nothing)
   return html_str
 end
 
+function as_basic_html_stylesheet(colors_light, colors_dark, name,
+    partname_light, partname_dark)
+  str = "/* " * description_comment(name,
+    "$partname_light\", \"$partname_dark") * " */\n\n"
+  str *= as_css_custom_vars(colors_light, name, partname_light;
+    include_comment = false) * "\n"
+  str *= as_css_custom_vars(colorss_dark, name, partname_dark;
+    include_comment = false) * "\n"
+  for (mode, partname) in (("light", partname_light), ("dark", partname_dark))
+    str *= """
+      @media (prefers-color-scheme: $mode) {
+        :root {
+          background: var(--$partname-background);
+          color: var(--$partname-foreground);
+        }
+      }
+      """
+  end
+  return str
+end
+
 """
-    write_files(part_1_name => part_1_colors, ...; name, out_dir)
+    write_files(part_1_name => part_1_colors, ...; name, out_dir,
+      basic_html_stylesheet_light_dark_combos)
 
 Export a color scheme named `name` consisting of several parts named
 `part_1_name`, etc. in the formats supported by this package to subdirectories
 of `out_dir`.
 
+`basic_html_stylesheet_light_dark_combos` is an iterable of two-element
+iterables `(part_light_name, part_dark_name)` that should be used to create
+basic CSS stylesheets for HTML that respect the `color-scheme` CSS property.
+
 See also `@write_files`.
 """
 function write_files(colorss::Pair...;
-    name = "colors", out_dir = joinpath(pwd(), "out"))
+    name = "colors", out_dir = joinpath(pwd(), "out"),
+    basic_html_stylesheet_light_dark_combos)
   name_dir = joinpath(out_dir, name)
   names = map(first, colorss)
   mkpath(name_dir)
@@ -601,6 +628,17 @@ function write_files(colorss::Pair...;
       if executable_bit; chmod(path_file, 0o744); end
     end
   end
+
+  for (light, dark) in basic_html_stylesheet_light_dark_combos
+    colorss_dict = dictionary(colorss)
+    str = as_basic_html_stylesheet(colorss_dict[light], colorss_dict[dark],
+      name, light, dark)
+    path_dir = joinpath(name_dir, "basic-html-stylesheets", name)
+    path_file = joinpath(path_dir, "$light-$dark.$ext")
+    mkpath(path_dir)
+    write(path_file, str)
+  end
+
   return termview(map(last, colorss)...)
 end
 
