@@ -183,8 +183,8 @@ function description_comment(name, partname)
     Generated from the Julia code in the `ColorSchemeExporter.jl` Git \
     repository.
 
-    Color scheme group: $name
-    Color scheme flavor: $partname"""
+    Color scheme group: \"$name\"
+    Color scheme flavor: \"$partname\""""
 end
 
 function as_itermcolors(colors, name, partname)
@@ -427,7 +427,8 @@ function as_css_custom_vars(colors, name, partname)
   str = "/* $(description_comment(name, partname)) */\n\n"
   str *= ":root {\n"
   for (k, c) in pairs(colors)
-    str *= indent("--$partname-$k: #$(hex(c, :rrggbbaa))")
+    full_name = replace("$partname-$k", "_" => "-", " " => "-")
+    str *= indent("--$full_name: #$(hex(c, :rrggbbaa));\n")
   end
   str *= "}\n"
   return str
