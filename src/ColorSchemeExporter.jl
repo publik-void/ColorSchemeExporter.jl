@@ -574,7 +574,7 @@ function as_basic_html_stylesheet(colors_light, colors_dark, name,
     "$partname_light\", \"$partname_dark") * " */\n\n"
   str *= as_css_custom_vars(colors_light, name, partname_light;
     include_comment = false) * "\n"
-  str *= as_css_custom_vars(colorss_dark, name, partname_dark;
+  str *= as_css_custom_vars(colors_dark, name, partname_dark;
     include_comment = false) * "\n"
   for (mode, partname) in (("light", partname_light), ("dark", partname_dark))
     str *= """
