@@ -179,9 +179,13 @@ function fill_defaults(colors)
 end
 
 function description_comment(name, partname)
+  url = read(Cmd(`git remote get-url origin`; dir = joinpath(@__DIR__, "..")),
+    String)
   return """
     Generated from the Julia code in the `ColorSchemeExporter.jl` Git \
     repository.
+    Available at the time of generation at:
+    $url
 
     Color scheme group: \"$name\"
     Color scheme flavor: \"$partname\""""
