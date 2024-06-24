@@ -580,12 +580,30 @@ function as_basic_html_stylesheet(colors_light, colors_dark, name,
     include_comment = false) * "\n"
   str *= as_css_custom_vars(colors_dark, name, partname_dark;
     include_comment = false) * "\n"
-  for (mode, partname) in (("light", partname_light), ("dark", partname_dark))
+  for (mode, partname, stronger_foreground) in
+      (("light", partname_light, "bright-black"),
+       ("dark" , partname_dark , "bright-white"))
     str *= """
       @media (prefers-color-scheme: $mode) {
         :root {
           background: var(--$partname-background);
           color: var(--$partname-foreground);
+        }
+
+        h1, h2, h3, h4, h5, h6 {
+          color: var(--$partname-$stronger_foreground);
+        }
+
+        a:link {
+          color: var(--$partname-blue);
+        }
+
+        a:visited {
+          color: var(--$partname-magenta);
+        }
+
+        a:active {
+          color: var(--$partname-red);
         }
       }
       """ * "\n"
