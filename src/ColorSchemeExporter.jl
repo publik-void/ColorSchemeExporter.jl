@@ -179,13 +179,13 @@ function fill_defaults(colors)
 end
 
 function description_comment(name, partname)
-  url = read(Cmd(`git remote get-url origin`; dir = joinpath(@__DIR__, "..")),
-    String)
+  # url = read(Cmd(`git remote get-url origin`; dir = joinpath(@__DIR__, "..")),
+  #   String)
+  url = "https://github.com/publik-void/temperance-color-scheme.git"
   return """
     Generated from the Julia code in the `ColorSchemeExporter.jl` Git \
     repository.
-    Available at the time of generation at:
-    $url
+    Available at: $url
 
     Color scheme group: \"$name\"
     Color scheme flavor: \"$partname\""""
