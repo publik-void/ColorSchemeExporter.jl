@@ -573,16 +573,17 @@ function html_view(colorss...; name = nothing, names = nothing)
 end
 
 function as_basic_html_stylesheet(colors_light, colors_dark, name,
-    partname_light, partname_dark)
+    partname_light, partname_dark;
+    heading_foreground_light = "white", heading_foreground_dark = "black")
   str = "/* " * description_comment(name,
     "$partname_light\", \"$partname_dark") * " */\n\n"
   str *= as_css_custom_vars(colors_light, name, partname_light;
     include_comment = false) * "\n"
   str *= as_css_custom_vars(colors_dark, name, partname_dark;
     include_comment = false) * "\n"
-  for (mode, partname, stronger_foreground) in
-      (("light", partname_light, "bright-black"),
-       ("dark" , partname_dark , "bright-white"))
+  for (mode, partname, heading_foreground) in
+      (("light", partname_light, heading_foreground_light),
+       ("dark" , partname_dark , heading_foreground_dark))
     str *= """
       @media (prefers-color-scheme: $mode) {
         :root {
@@ -591,7 +592,7 @@ function as_basic_html_stylesheet(colors_light, colors_dark, name,
         }
 
         h1, h2, h3, h4, h5, h6 {
-          color: var(--$partname-$stronger_foreground);
+          color: var(--$partname-$heading_foreground);
         }
 
         a:link {
