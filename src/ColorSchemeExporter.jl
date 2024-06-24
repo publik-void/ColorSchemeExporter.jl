@@ -181,7 +181,7 @@ end
 function description_comment(name, partname)
   # url = read(Cmd(`git remote get-url origin`; dir = joinpath(@__DIR__, "..")),
   #   String)
-  url = "https://github.com/publik-void/temperance-color-scheme.git"
+  url = "https://github.com/publik-void/ColorSchemeExporter.jl.git"
   return """
     Generated from the Julia code in the `ColorSchemeExporter.jl` Git \
     repository.
