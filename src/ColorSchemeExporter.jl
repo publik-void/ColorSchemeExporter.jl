@@ -178,7 +178,16 @@ function fill_defaults(colors)
   return colors
 end
 
-function as_itermcolors(colors)
+function description_comment(name, partname)
+  return """
+    Generated from the Julia code in the `ColorSchemeExporter.jl` Git \
+    repository.
+
+    Color scheme group: $name
+    Color scheme flavor: $partname"""
+end
+
+function as_itermcolors(colors, name, partname)
   colors = fill_defaults(key_convert(colors))
 
   itermcolors_names = dictionary((
@@ -257,6 +266,7 @@ function as_itermcolors(colors)
       "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
     <plist version="1.0">
     """
+  itermcolors_str *= "<!-- $(description_comment(name, partname)) -->\n"
   itermcolors_str *= dict(itermcolors_dict)
   itermcolors_str *= """
     </plist>
@@ -264,7 +274,7 @@ function as_itermcolors(colors)
   return itermcolors_str
 end
 
-function as_st_config(colors)
+function as_st_config(colors, name, partname)
   colors = fill_defaults(key_convert(colors))
 
   color_indexes = dictionary((pairs(ansi_color_indexes)...,
@@ -279,8 +289,7 @@ function as_st_config(colors)
   #   :cursor         => "defaultcs",
   #   :cursor_reverse => "defaultrcs"))
 
-  p0 = "// Generated from the Julia code in the `ColorSchemeExporter.jl` Git \
-    repository\n"
+  p0 = "/* $(description_comment(name, partname)) */\n"
 
   p1 = "// Terminal colors\n\
     static const char *colorname[] = {\n"
@@ -310,7 +319,7 @@ function as_st_config(colors)
   return join((p for p in (p0, p1, p2) if !isempty(p)), "\n")
 end
 
-function as_xresources(colors)
+function as_xresources(colors, name, partname)
   colors = fill_defaults(key_convert(colors))
 
   xresources_names = dictionary((
@@ -336,8 +345,8 @@ function as_xresources(colors)
 
   prefix = "*"
 
-  str = "! Generated from the Julia code in the `ColorSchemeExporter.jl` Git \
-    repository\n\n"
+  str = "! " * replace(description_comment(name, partname), "\n" => "\n! ") *
+    "\n\n"
   for (k, name) in pairs(xresources_names)
     if haskey(colors, k)
       str *= "! $k\n$prefix$(name): #$(hex(colors[k], :rrggbb))\n\n"
@@ -346,15 +355,13 @@ function as_xresources(colors)
   return str
 end
 
-function as_console_escape_codes(colors)
+function as_console_escape_codes(colors, name, partname)
   colors = fill_defaults(key_convert(colors))
 
-  str = """\
-  #!/bin/sh
+  str = "#!/bin/sh\n\n"
 
-  # Generated from the Julia code in the `ColorSchemeExporter.jl` Git repository
-
-  """
+  str *= "# " * replace(description_comment(name, partname), "\n" => "\n# ") *
+    "\n\n"
 
   escape_cmd(i, k) = "printf \"\e]P$(uppercase(string(i; base = 16)))\
     $(hex(colors[k], :rrggbb))\" # $k\n"
@@ -411,6 +418,18 @@ function as_console_escape_codes(colors)
     end
   end
 
+  return str
+end
+
+function as_css_custom_vars(colors, name, partname)
+  colors = fill_defaults(key_convert(colors))
+
+  str = "/* $(description_comment(name, partname)) */\n\n"
+  str *= ":root {\n"
+  for (k, c) in pairs(colors)
+    str *= indent("--$partname-$k: #$(hex(c, :rrggbbaa))")
+  end
+  str *= "}\n"
   return str
 end
 
@@ -567,8 +586,9 @@ function write_files(colorss::Pair...;
         (as_itermcolors, "itermcolors", "iTerm2", false),
         (as_st_config, "h", "st", false),
         (as_xresources, "theme.Xresources", "Xresources", false),
-        (as_console_escape_codes, "sh", "console-escape-codes", true))
-      str = formatter(colors)
+        (as_console_escape_codes, "sh", "console-escape-codes", true),
+        (as_css_custom_vars, "css", "style-sheets", false))
+      str = formatter(colors, name, partname)
       path_dir = joinpath(name_dir, format_name, name)
       path_file = joinpath(path_dir, "$partname.$ext")
       mkpath(path_dir)
