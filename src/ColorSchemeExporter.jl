@@ -428,7 +428,9 @@ end
 function as_css_custom_vars(colors, name, partname; include_comment = true)
   colors = fill_defaults(key_convert(colors))
 
-  str = "/* $(description_comment(name, partname)) */\n\n"
+  if include_comment
+    str = "/* $(description_comment(name, partname)) */\n\n"
+  end
   str *= ":root {\n"
   for (k, c) in pairs(colors)
     full_name = replace("$partname-$k", "_" => "-", " " => "-")
@@ -584,7 +586,7 @@ function as_basic_html_stylesheet(colors_light, colors_dark, name,
           color: var(--$partname-foreground);
         }
       }
-      """
+      """ * "\n"
   end
   return str
 end
