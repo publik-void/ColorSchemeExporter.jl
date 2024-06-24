@@ -430,6 +430,8 @@ function as_css_custom_vars(colors, name, partname; include_comment = true)
 
   if include_comment
     str = "/* $(description_comment(name, partname)) */\n\n"
+  else
+    str = ""
   end
   str *= ":root {\n"
   for (k, c) in pairs(colors)
